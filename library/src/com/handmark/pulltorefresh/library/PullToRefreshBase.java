@@ -93,6 +93,8 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	private int mHeaderHeight;
 	private int mFooterHeight;
 
+	private boolean mDispatchingToView;
+
 	private OnRefreshListener<T> mOnRefreshListener;
 	private OnRefreshListener2<T> mOnRefreshListener2;
 	private OnPullEventListener<T> mOnPullEventListener;
@@ -282,7 +284,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 			case MotionEvent.ACTION_MOVE: {
 				if (mIsBeingDragged) {
 					mLastMotionY = event.getY();
-					pullEvent();
+					pullEvent(event);
 					return true;
 				}
 				break;
@@ -550,6 +552,7 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 */
 	void onReset() {
 		mIsBeingDragged = false;
+		mDispatchingToView = false;
 
 		if (mMode.canPullDown()) {
 			mHeaderLayout.reset();
@@ -902,39 +905,42 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	 * @return true if the Event has been handled, false if there has been no
 	 *         change
 	 */
-	private void pullEvent() {
-		final int newScrollY;
-		final int itemHeight;
-
-		switch (mCurrentMode) {
-			case PULL_UP_TO_REFRESH:
-				newScrollY = Math.round(Math.max(mInitialMotionY - mLastMotionY, 0) / FRICTION);
-				itemHeight = mFooterHeight;
-				break;
-			case PULL_DOWN_TO_REFRESH:
-			default:
-				newScrollY = Math.round(Math.min(mInitialMotionY - mLastMotionY, 0) / FRICTION);
-				itemHeight = mHeaderHeight;
-				break;
-		}
-
-		setHeaderScroll(newScrollY);
-
-		if (newScrollY != 0) {
-			float scale = Math.abs(newScrollY) / (float) itemHeight;
-			switch (mCurrentMode) {
-				case PULL_UP_TO_REFRESH:
-					mFooterLayout.onPullY(scale);
-					break;
-				case PULL_DOWN_TO_REFRESH:
-					mHeaderLayout.onPullY(scale);
-					break;
+	private void pullEvent(MotionEvent ev) {
+		if (mCurrentMode.shouldDispatchToRefreshableView(mInitialMotionY, mLastMotionY)) {
+			if (!mDispatchingToView) {
+				ev = MotionEvent.obtain(ev);
+				ev.setAction(MotionEvent.ACTION_DOWN);
+				mDispatchingToView = true;
+				
+				// Could probably do something here so that RefreshableView think it's already scrolling.
+				// e.g. Dispatch some fake touch events simulating a scroll > touch slop.
 			}
+			mRefreshableView.dispatchTouchEvent(ev);
 
-			if (mState != State.PULL_TO_REFRESH && itemHeight >= Math.abs(newScrollY)) {
-				setState(State.PULL_TO_REFRESH);
-			} else if (mState == State.PULL_TO_REFRESH && itemHeight < Math.abs(newScrollY)) {
-				setState(State.RELEASE_TO_REFRESH);
+		} else {
+			mDispatchingToView = false;
+
+			final int newScrollY = mCurrentMode.calculateScrollY(mInitialMotionY, mLastMotionY);
+			setHeaderScroll(newScrollY);
+
+			if (newScrollY != 0) {
+				final int itemHeight = mCurrentMode == Mode.PULL_DOWN_TO_REFRESH ? mHeaderHeight : mFooterHeight;
+
+				float scale = Math.abs(newScrollY) / (float) itemHeight;
+				switch (mCurrentMode) {
+					case PULL_UP_TO_REFRESH:
+						mFooterLayout.onPullY(scale);
+						break;
+					case PULL_DOWN_TO_REFRESH:
+						mHeaderLayout.onPullY(scale);
+						break;
+				}
+
+				if (mState != State.PULL_TO_REFRESH && itemHeight >= Math.abs(newScrollY)) {
+					setState(State.PULL_TO_REFRESH);
+				} else if (mState == State.PULL_TO_REFRESH && itemHeight < Math.abs(newScrollY)) {
+					setState(State.RELEASE_TO_REFRESH);
+				}
 			}
 		}
 	}
@@ -1119,6 +1125,26 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 		// The modeInt values need to match those from attrs.xml
 		Mode(int modeInt) {
 			mIntValue = modeInt;
+		}
+
+		int calculateScrollY(final float initialY, final float lastY) {
+			switch (this) {
+				case PULL_UP_TO_REFRESH:
+					return Math.round(Math.max(initialY - lastY, 0f) / FRICTION);
+				case PULL_DOWN_TO_REFRESH:
+				default:
+					return Math.round(Math.min(initialY - lastY, 0f) / FRICTION);
+			}
+		}
+
+		boolean shouldDispatchToRefreshableView(final float initialY, final float lastY) {
+			switch (this) {
+				case PULL_UP_TO_REFRESH:
+					return initialY < lastY;
+				case PULL_DOWN_TO_REFRESH:
+				default:
+					return initialY > lastY;
+			}
 		}
 
 		/**
