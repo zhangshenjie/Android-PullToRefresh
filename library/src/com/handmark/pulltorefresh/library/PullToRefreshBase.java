@@ -908,12 +908,18 @@ public abstract class PullToRefreshBase<T extends View> extends LinearLayout imp
 	private void pullEvent(MotionEvent ev) {
 		if (mCurrentMode.shouldDispatchToRefreshableView(mInitialMotionY, mLastMotionY)) {
 			if (!mDispatchingToView) {
+				if (DEBUG) {
+					Log.d(LOG_TAG, "Dispatching Touch Event to Refreshable View");
+				}
 				ev = MotionEvent.obtain(ev);
 				ev.setAction(MotionEvent.ACTION_DOWN);
 				mDispatchingToView = true;
-				
-				// Could probably do something here so that RefreshableView think it's already scrolling.
-				// e.g. Dispatch some fake touch events simulating a scroll > touch slop.
+
+				/**
+				 * TODO Could probably do something here so that RefreshableView
+				 * think it's already scrolling. e.g. Dispatch some fake touch
+				 * events simulating a scroll > touch slop.
+				 */
 			}
 			mRefreshableView.dispatchTouchEvent(ev);
 
