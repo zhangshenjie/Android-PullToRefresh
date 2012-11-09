@@ -117,6 +117,10 @@ public class PullToRefreshListView extends PullToRefreshAdapterViewBase<ListView
 		}
 	}
 
+    public void setScrollEnabled(boolean isScrollEnabled) {
+        ((InternalListView) getRefreshableView()).setScrollEnabled(isScrollEnabled);
+    }
+
 	@Override
 	void onRefreshing(final boolean doScroll) {
 
@@ -334,10 +338,6 @@ public class PullToRefreshListView extends PullToRefreshAdapterViewBase<ListView
 
         public void setScrollEnabled(boolean isScrollEnabled) {
             this.mScrollEnabled = isScrollEnabled;
-        }
-
-        public boolean isScrollEnabled() {
-            return mScrollEnabled;
         }
 
         public boolean onInterceptTouchEvent(MotionEvent ev) {
