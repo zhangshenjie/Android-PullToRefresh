@@ -24,6 +24,7 @@ import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.util.AttributeSet;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ListAdapter;
@@ -285,9 +286,11 @@ public class PullToRefreshListView extends PullToRefreshAdapterViewBase<ListView
 	protected class InternalListView extends ListView implements EmptyViewMethodAccessor {
 
 		private boolean mAddedLvFooter = false;
+        private boolean mScrollEnabled;
 
 		public InternalListView(Context context, AttributeSet attrs) {
 			super(context, attrs);
+            mScrollEnabled = true;
 		}
 
 		@Override
@@ -328,6 +331,22 @@ public class PullToRefreshListView extends PullToRefreshAdapterViewBase<ListView
 		public void setEmptyViewInternal(View emptyView) {
 			super.setEmptyView(emptyView);
 		}
+
+        public void setScrollEnabled(boolean isScrollEnabled) {
+            this.mScrollEnabled = isScrollEnabled;
+        }
+
+        public boolean isScrollEnabled() {
+            return mScrollEnabled;
+        }
+
+        public boolean onInterceptTouchEvent(MotionEvent ev) {
+            if (mScrollEnabled) {
+                return super.onInterceptTouchEvent(ev);
+            } else {
+                return false;
+            }
+        }
 
 	}
 
